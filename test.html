@@ -1,72 +1,183 @@
 <!DOCTYPE html>
 <html>
 <head>
-    <title>Voice AI Test</title>
+    <title>Uzbek Voice AI</title>
+
+    <style>
+        body {
+            font-family: Arial, sans-serif;
+            max-width: 700px;
+            margin: 50px auto;
+            background: #f5f5f5;
+        }
+
+        h1 {
+            text-align: center;
+        }
+
+        button {
+            display: block;
+            margin: 20px auto;
+            padding: 12px 25px;
+            font-size: 16px;
+            cursor: pointer;
+        }
+
+        #status {
+            text-align: center;
+            margin: 15px;
+        }
+
+        #chat {
+            background: white;
+            padding: 20px;
+            border-radius: 10px;
+            min-height: 100px;
+        }
+
+        .message {
+            margin-bottom: 15px;
+        }
+
+        .user {
+            background: #e8f3ff;
+            padding: 12px;
+            border-radius: 10px;
+        }
+    </style>
+
 </head>
+
 <body>
 
-<h1>Voice AI Test</h1>
+    <h1>🎙️ Uzbek Voice AI</h1>
 
-<button id="startButton">🎤 Mikrofonni yoqish</button>
+    <div id="status">WebSocket ulanmoqda...</div>
 
-<p id="result"></p>
+    <button id="startButton">🎤 Gapirishni boshlash</button>
 
-<script>
-    const button = document.getElementById("startButton");
-    const result = document.getElementById("result");
+    <div id="chat"></div>
 
-    const socket = new WebSocket("ws://127.0.0.1:8000/ws");
 
-    socket.onopen = function() {
-        console.log("WebSocket ulandi!");
-    };
+    <script>
 
-    socket.onmessage = function(event) {
-        result.innerText = event.data;
-    };
+        const button = document.getElementById("startButton");
+        const chat = document.getElementById("chat");
+        const status = document.getElementById("status");
 
-    socket.onerror = function(error) {
-        console.log("WebSocket xato:", error);
-    };
 
-    button.onclick = async function() {
-        const stream = await navigator.mediaDevices.getUserMedia({
-            audio: true
-        });
+        const socket = new WebSocket("ws://127.0.0.1:8000/ws");
 
-        const recorder = new MediaRecorder(stream);
-        const audioChunks = [];
 
-        recorder.ondataavailable = function(event) {
-            audioChunks.push(event.data);
-            console.log("Audio bo'lagi keldi");
+        socket.onopen = function() {
+
+            console.log("WebSocket ulandi!");
+
+            status.innerText = "🟢 WebSocket ulandi";
+
         };
 
-        recorder.onstop = function() {
-            console.log("Recording to'xtadi");
 
-            const audioBlob = new Blob(audioChunks, {
-                type: "audio/webm"
+        socket.onmessage = function(event) {
+
+            console.log("Serverdan javob:", event.data);
+
+            const message = document.createElement("div");
+
+            message.className = "message user";
+
+            message.innerHTML = `
+                <strong>🎤 Server:</strong>
+                <div>${event.data}</div>
+            `;
+
+            chat.appendChild(message);
+
+        };
+
+
+        socket.onerror = function(error) {
+
+            console.log("WebSocket xato:", error);
+
+            status.innerText = "🔴 WebSocket xato";
+
+        };
+
+
+        socket.onclose = function() {
+
+            console.log("WebSocket yopildi!");
+
+            status.innerText = "🔴 WebSocket yopildi";
+
+        };
+
+
+        button.onclick = async function() {
+
+            if (socket.readyState !== WebSocket.OPEN) {
+
+                alert("WebSocket ulanmagan!");
+
+                return;
+
+            }
+
+
+            const stream = await navigator.mediaDevices.getUserMedia({
+                audio: true
             });
 
-            console.log("Audio hajmi:", audioBlob.size);
 
-            socket.send(audioBlob);
+            const recorder = new MediaRecorder(stream);
 
-            stream.getTracks().forEach(track => track.stop());
 
-            result.innerText = "Audio yuborildi!";
+            recorder.ondataavailable = function(event) {
+
+                if (event.data.size > 0) {
+
+                    console.log(
+                        "Audio yuborilmoqda:",
+                        event.data.size,
+                        "bytes"
+                    );
+
+                    socket.send(event.data);
+
+                }
+
+            };
+
+
+            recorder.onstop = function() {
+
+                console.log("Recording to'xtadi");
+
+                stream.getTracks().forEach(
+                    track => track.stop()
+                );
+
+            };
+
+
+            recorder.start(1000);
+
+
+            button.innerText = "🔴 Gapiring...";
+
+
+            setTimeout(function() {
+
+                recorder.stop();
+
+                button.innerText = "🎤 Gapirishni boshlash";
+
+            }, 5000);
+
         };
 
-        recorder.start();
-
-        result.innerText = "Ovoz yozilmoqda...";
-
-        setTimeout(function() {
-            recorder.stop();
-        }, 5000);
-    };
-</script>
+    </script>
 
 </body>
 </html>
