@@ -1,0 +1,72 @@
+<!DOCTYPE html>
+<html>
+<head>
+    <title>Voice AI Test</title>
+</head>
+<body>
+
+<h1>Voice AI Test</h1>
+
+<button id="startButton">🎤 Mikrofonni yoqish</button>
+
+<p id="result"></p>
+
+<script>
+    const button = document.getElementById("startButton");
+    const result = document.getElementById("result");
+
+    const socket = new WebSocket("ws://127.0.0.1:8000/ws");
+
+    socket.onopen = function() {
+        console.log("WebSocket ulandi!");
+    };
+
+    socket.onmessage = function(event) {
+        result.innerText = event.data;
+    };
+
+    socket.onerror = function(error) {
+        console.log("WebSocket xato:", error);
+    };
+
+    button.onclick = async function() {
+        const stream = await navigator.mediaDevices.getUserMedia({
+            audio: true
+        });
+
+        const recorder = new MediaRecorder(stream);
+        const audioChunks = [];
+
+        recorder.ondataavailable = function(event) {
+            audioChunks.push(event.data);
+            console.log("Audio bo'lagi keldi");
+        };
+
+        recorder.onstop = function() {
+            console.log("Recording to'xtadi");
+
+            const audioBlob = new Blob(audioChunks, {
+                type: "audio/webm"
+            });
+
+            console.log("Audio hajmi:", audioBlob.size);
+
+            socket.send(audioBlob);
+
+            stream.getTracks().forEach(track => track.stop());
+
+            result.innerText = "Audio yuborildi!";
+        };
+
+        recorder.start();
+
+        result.innerText = "Ovoz yozilmoqda...";
+
+        setTimeout(function() {
+            recorder.stop();
+        }, 5000);
+    };
+</script>
+
+</body>
+</html>
